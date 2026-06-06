@@ -5,11 +5,12 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import bcrypt
+import os
 from database import get_db
 from models import User
 
 
-SECRET_KEY = "CHANGE_THIS_SECRET_KEY"
+SECRET_KEY = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 

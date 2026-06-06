@@ -24,6 +24,9 @@ import stripe
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
+BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8001")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
 Base.metadata.create_all(bind=engine)
 
 from fastapi import FastAPI
@@ -56,14 +59,16 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 from fastapi.middleware.cors import CORSMiddleware
 
+_cors_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+if FRONTEND_URL not in _cors_origins:
+    _cors_origins.append(FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
-
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -194,7 +199,7 @@ def upload_avatar(
     path = f"uploads/images/{filename}"
     with open(path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    current_user.avatar_url = f"http://127.0.0.1:8001/{path}"
+    current_user.avatar_url = f"{BASE_URL}/{path}"
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -590,7 +595,7 @@ def create_track_with_files(
         with open(image_path, "wb") as buffer:
             shutil.copyfileobj(image_file.file, buffer)
 
-        image_url = f"http://127.0.0.1:8001/{image_path}"
+        image_url = f"{BASE_URL}/{image_path}"
 
     new_track = Track(
         title=title,
@@ -600,8 +605,8 @@ def create_track_with_files(
         key=key,
         price=price,
         duration=duration,
-        demo_file_url=f"http://127.0.0.1:8001/{demo_path}",
-        full_file_url=f"http://127.0.0.1:8001/{full_path}",
+        demo_file_url=f"{BASE_URL}/{demo_path}",
+        full_file_url=f"{BASE_URL}/{full_path}",
         image_url=image_url,
         description=description
     )
@@ -653,8 +658,8 @@ def create_checkout_session(
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
-            success_url="http://localhost:3000/payment-success",
-            cancel_url="http://localhost:3000/cart",
+            success_url=f"{FRONTEND_URL}/payment-success",
+            cancel_url=f"{FRONTEND_URL}/cart",
         )
 
         return {"url": session.url}
@@ -846,8 +851,7 @@ def download_track(
         raise HTTPException(status_code=404, detail="Файл не знайдено")
 
     # Extract relative path from the stored URL
-    base_url = "http://127.0.0.1:8001/"
-    relative_path = track.full_file_url.replace(base_url, "")
+    relative_path = track.full_file_url.replace(BASE_URL + "/", "").replace("http://127.0.0.1:8001/", "")
 
     # Absolute path based on main.py location
     base_dir = os.path.dirname(os.path.abspath(__file__))
